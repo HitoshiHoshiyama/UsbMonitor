@@ -28,6 +28,10 @@ namespace UsbMonitor
             };
             // マウスイベントハンドラを設定
             this.NotifyIcon.MouseDoubleClick += new MouseEventHandler(OnDoubleClick);
+
+            // MainWindow生成のみ(XAMLのStartupUriは削除)
+            this.mainWindow = new MainWindow();
+            this.mainWindow.Visibility = Visibility.Visible;
         }
 
         /// <summary>
@@ -37,10 +41,8 @@ namespace UsbMonitor
         /// <param name="e">イベント引数が設定される。</param>
         private void OnDoubleClick(object? sender, System.Windows.Forms.MouseEventArgs e)
         {
-            // 初回はMainWindow未生成(XAMLのStartupUriは削除)
-            if (this.mainWindow is null) this.mainWindow = new MainWindow();
             // MainWindowの表示(×ボタンではHideするだけ)
-            this.mainWindow.Show();
+            this.mainWindow?.Show();
         }
 
         /// <summary>

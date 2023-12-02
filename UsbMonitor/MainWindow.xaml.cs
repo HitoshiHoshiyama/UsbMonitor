@@ -1,4 +1,5 @@
-﻿using System.Windows;
+﻿using Microsoft.Toolkit.Uwp.Notifications;
+using System.Windows;
 using System.Windows.Interop;
 
 namespace UsbMonitor
@@ -15,6 +16,8 @@ namespace UsbMonitor
             this.Loaded += (o, e) =>
             {
                 ((UsbDetectViewModel)this.DataContext).RegistHwnd(new WindowInteropHelper(this).Handle);
+                ((UsbDetectViewModel)this.DataContext).ToastNotified += OnToastNotified;
+                this.Visibility = Visibility.Hidden;
             };
         }
 
@@ -41,6 +44,15 @@ namespace UsbMonitor
             {
                 ((UsbDetectViewModel)this.DataContext).LogDir = dialog.SelectedPath;
             }
+        }
+
+        private void OnToastNotified(DeviceDetector.DeviceNotifyInfomation notifyInfo)
+        {
+            new ToastContentBuilder().AddArgument("action", "viewConversation")
+                .AddArgument("conversationId", 9813)
+                .AddText($"{notifyInfo.DeviceName} が{(notifyInfo.IsAdded ? "接続され" : "抜かれ")}ました。")
+                .AddText($"製造者：{notifyInfo.Manufacturer}")
+                .Show();
         }
     }
 }

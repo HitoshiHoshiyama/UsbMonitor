@@ -37,8 +37,13 @@ namespace UsbMonitor
         {
             this.notifyList.Add(notify);
             this.NotifyList = this.notifyList;
+            this.ToastNotified?.Invoke(notify);
         }
 
+        /// <summary>
+        /// 通知情報をファイル出力する。
+        /// </summary>
+        /// <param name="fileName">ファイル名を指定する。</param>
         public void ExportNotify(string fileName)
         {
             this.UsbMonitorModel.Export(this.notifyList.ToList(), fileName);
@@ -49,6 +54,14 @@ namespace UsbMonitor
 
         /// <summary>プロパティ変更時に発生するイベント。</summary>
         public event PropertyChangedEventHandler? PropertyChanged;
+        /// <summary>トースト通知発生時のイベント。</summary>
+        public event ToastNotifyEventHandler? ToastNotified;
+
+        /// <summary>
+        /// トースト通知イベント用デリゲート。
+        /// </summary>
+        /// <param name="notify">通知内容が設定される。</param>
+        public delegate void ToastNotifyEventHandler(DeviceDetector.DeviceNotifyInfomation notify);
 
         /// <summary>デバイス変更通知リストを取得・設定する。</summary>
         public ObservableCollection<DeviceNotifyInfomation> NotifyList

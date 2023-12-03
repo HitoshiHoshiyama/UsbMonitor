@@ -1,4 +1,5 @@
-﻿using System.Windows;
+﻿using Microsoft.Toolkit.Uwp.Notifications;
+using System.Windows;
 
 namespace UsbMonitor
 {
@@ -25,6 +26,16 @@ namespace UsbMonitor
                 Icon = new System.Drawing.Icon(icon),
                 Text = $"{this.GetType().Namespace}",
                 ContextMenuStrip = menu
+            };
+            // Listen to notification activation
+            ToastNotificationManagerCompat.OnActivated += toastArgs =>
+            {
+                // https://learn.microsoft.com/ja-jp/windows/apps/design/shell/tiles-and-notifications/send-local-toast?tabs=desktop-msix
+                ToastArguments args = ToastArguments.Parse(toastArgs.Argument);
+                System.Windows.Application.Current.Dispatcher.Invoke(delegate
+                {
+                    // TODO: Show the corresponding content
+                });
             };
             // マウスイベントハンドラを設定
             this.NotifyIcon.MouseDoubleClick += new MouseEventHandler(OnDoubleClick);
@@ -53,6 +64,7 @@ namespace UsbMonitor
         private void ExitMenuClick(object? sender, EventArgs e)
         {
             this.NotifyIcon?.Dispose();
+            ToastNotificationManagerCompat.History.Clear();
             Shutdown();
         }
 

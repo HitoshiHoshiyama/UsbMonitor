@@ -28,6 +28,8 @@ namespace UsbMonitor
             ((UsbDetectViewModel)this.DataContext).ExportNotify($"{dirName}{(System.IO.Path.DirectorySeparatorChar)}{fileName}.log");
 
             ((UsbDetectViewModel)this.DataContext).Dispose();
+
+            ToastNotificationManagerCompat.Uninstall();
         }
 
         private void OnClosing(object sender, System.ComponentModel.CancelEventArgs e)

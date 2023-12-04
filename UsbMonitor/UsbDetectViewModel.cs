@@ -3,7 +3,6 @@ using System.ComponentModel;
 using System.Windows.Data;
 using System.Configuration;
 using DeviceDetector;
-using static System.Windows.Forms.VisualStyles.VisualStyleElement.Window;
 
 namespace UsbMonitor
 {

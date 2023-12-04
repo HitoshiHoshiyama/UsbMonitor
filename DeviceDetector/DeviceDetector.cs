@@ -1,6 +1,7 @@
 ﻿using System.Collections.Concurrent;
 using System.Runtime.InteropServices;
 using System.Management;
+using System.Text;
 
 namespace DeviceDetector
 {
@@ -141,35 +142,13 @@ namespace DeviceDetector
                         pnpEntity = new ManagementClass("Win32_PnPEntity").GetInstances();
                     }
                     // デバイスパスからVID/PIDを抽出
-                    var devicePath = request.Item2.dbcc_name is null ? string.Empty : new string(request.Item2.dbcc_name);
-                    devicePath = devicePath.Remove(devicePath.IndexOf('\0')).ToUpper();
-                    var vid = devicePath.Substring(devicePath.IndexOf("VID_"), 8);
-                    var pid = devicePath.Substring(devicePath.IndexOf("PID_"), 8);
-                    var deviceName = string.Empty;
-                    var manufacturer = string.Empty;
-                    var pnpDeviceId = string.Empty;
+                    var dbcc_name = request.Item2.dbcc_name is null ? string.Empty : new string(request.Item2.dbcc_name);
+                    dbcc_name = TrimDevicePath(dbcc_name.Remove(dbcc_name.IndexOf('\0')));
+                    var arg = new DeviceNotifyInfomation(request.Item1, dbcc_name, pnpEntity, instance.LoggerInstance);
 
-                    foreach (var device in pnpEntity)
-                    {
-                        var deviceId = device.GetPropertyValue("DeviceID") is null ? string.Empty : device.GetPropertyValue("DeviceID").ToString();
-                        if (deviceId is not null && deviceId.ToUpper().IndexOf(vid) >= 0 && deviceId.ToUpper().IndexOf(pid) >= 0)
-                        {
-                            // VID/PIDが一致したdeviceの情報からイベント引数にセットする情報を抽出
-                            deviceName = device.GetPropertyValue("Name") is null ? string.Empty : device.GetPropertyValue("Name").ToString();
-                            manufacturer = device.GetPropertyValue("Manufacturer") is null ? string.Empty : device.GetPropertyValue("Manufacturer").ToString();
-                            pnpDeviceId = device.GetPropertyValue("PNPDeviceID") is null ? string.Empty : device.GetPropertyValue("PNPDeviceID").ToString();
-                            instance.LoggerInstance?.Debug($"Device name:{(deviceName)} Manufacturer:{manufacturer} ID:{(deviceId)}");
-                            break;
-                        }
-                    }
-
-                    if (deviceName != string.Empty)
+                    if (arg.DeviceName != string.Empty)
                     {
                         // VID/PIDが一致した場合はイベント発火
-                        var arg = new DeviceNotifyInfomation( request.Item1,
-                                                            deviceName is null ? string.Empty : deviceName,
-                                                            manufacturer is null ? string.Empty : manufacturer,
-                                                            pnpDeviceId is null ? string.Empty : pnpDeviceId);
                         instance.LoggerInstance?.Debug($"Begin callback(isAdded:{arg.IsAdded} name:{arg.DeviceName})");
                         instance.DeviceChanged?.Invoke(instance, arg);
                     }
@@ -187,6 +166,28 @@ namespace DeviceDetector
             }
             pnpEntity.Dispose();
         });
+
+        /// <summary>
+        /// dbcc_nameから不要な文字を削除する。
+        /// </summary>
+        /// <param name="dbcc_name">構造体 DEV_BROADCAST_DEVICEINTERFACE の dbcc_name を指定する。</param>
+        /// <returns>dbcc_name から不要な情報を省いたデバイスIDを返す。</returns>
+        private static string TrimDevicePath(string? dbcc_name)
+        {
+            if (dbcc_name is null) return string.Empty;
+
+            var result = dbcc_name.ToUpper();
+            var UsbPos = result.IndexOf("USB");
+            if (UsbPos < 0) return string.Empty;
+            result = result.Substring(UsbPos);
+            var classId = result.IndexOf("{");
+            if (classId >= 0) result = result.Substring(0, classId);
+            if (result.ElementAt(result.Length - 1) == '#') result = result.Substring(0, result.Length - 1);
+            result = result.Replace("#", @"\");
+
+            return result;
+        }
+
         private Task MsgTask;
         private BlockingCollection<Tuple<bool, DEV_BROADCAST_DEVICEINTERFACE>> TaskQueue;
         private CancellationTokenSource TaskCancel = new CancellationTokenSource();
@@ -213,19 +214,42 @@ namespace DeviceDetector
     /// <summary>デバイス追加/削除イベントのイベント引数クラス。</summary>
     public class DeviceNotifyInfomation : EventArgs
     {
+        #region native
+        [DllImport("setupapi.dll", SetLastError = true, CharSet = CharSet.Auto)]
+        static extern int CM_Locate_DevNode(ref int pdnDevInst, string pDeviceID, int ulFlags);
+        [DllImport("setupapi.dll", SetLastError = true, CharSet = CharSet.Auto)]
+        static extern int CM_Get_Child(ref int pdnDevInst, int dnDevInst, int ulFlags = 0);
+        [DllImport("setupapi.dll", SetLastError = true, CharSet = CharSet.Auto)]
+        static extern int CM_Get_Sibling(ref int pdnDevInst, int dnDevInst, int ulFlags = 0);
+        [DllImport("setupapi.dll", SetLastError = true, CharSet = CharSet.Auto)]
+        static extern int CM_Get_Device_ID_Size(out uint pulLen, int dnDevInst, int flags = 0);
+        [DllImport("setupapi.dll", SetLastError = true, CharSet = CharSet.Auto)]
+        static extern int CM_Get_Device_ID(int dnDevInst, StringBuilder Buffer, uint BufferLen, int ulFlags = 0);
+
+        private const int CM_LOCATE_DEVNODE_NORMAL = 0;
+        private const int CM_LOCATE_DEVNODE_PHANTOM = 1;
+
+        private const int CR_SUCCESS = 0;
+        #endregion
+
         /// <summary>
         /// コンストラクタ。
         /// </summary>
         /// <param name="isAdded">追加/削除の区分を指定する。trueが追加を意味する。</param>
-        /// <param name="deviceName">デバイス名を指定する。</param>
-        /// <param name="manufacturer">製造者名を指定する。</param>
-        /// <param name="PnPDeviceId">インスタンスパスを指定する。</param>
-        public DeviceNotifyInfomation(bool isAdded, string deviceName, string manufacturer, string PnPDeviceId)
+        /// <param name="devicePath">デバイスパスを指定する。</param>
+        /// <param name="pnpEntity">Win32_PnPEntityクラスのManagementBaseObjectインスタンスを指定する。</param>
+        public DeviceNotifyInfomation(bool isAdded, string devicePath, ManagementObjectCollection pnpEntity, NLog.Logger? logger = null)
         {
+            this.logger = logger;
             this.IsAdded = isAdded;
-            this.DeviceName = deviceName;
-            this.Manufacturer = manufacturer;
-            this.InstancePath = PnPDeviceId;
+            var properties = this.GetPropertySet(devicePath, pnpEntity);
+            this.DeviceName = properties["deviceName"];
+            this.Manufacturer = properties["manufacturer"];
+            this.InstancePath = properties["pnpDeviceId"];
+
+            var pdnDevInst = 0;
+            if (CM_Locate_DevNode(ref pdnDevInst, this.InstancePath, CM_LOCATE_DEVNODE_PHANTOM) == CR_SUCCESS) this.Childs = GetChildren(pdnDevInst, pnpEntity);
+            this.logger?.Debug($"Child node:{this.Childs.Count}");
         }
         /// <summary>日時を取得する。</summary>
         public DateTime DateTime { get; private set; } = DateTime.Now;
@@ -237,5 +261,93 @@ namespace DeviceDetector
         public string Manufacturer { get; private set; } = string.Empty;
         /// <summary>インスタンスパスを取得する。</summary>
         public string InstancePath { get; private set; } = string.Empty;
+        /// <summary>子デバイスを取得する。</summary>
+        public List<DeviceNotifyInfomation> Childs { get; private set; } = new List<DeviceNotifyInfomation>();
+
+        private Dictionary<string, string> GetPropertySet(string devicePath, ManagementObjectCollection? pnpEntity)
+        {
+            if (pnpEntity is null) return new Dictionary<string, string>();
+
+            var result = new Dictionary<string, string>();
+            var vidPos = devicePath.IndexOf("VID_");
+            var pidPos = devicePath.IndexOf("PID_");
+            var vid = vidPos >= 0 ? devicePath.Substring(vidPos, 8) : string.Empty;
+            var pid = pidPos >= 0 ? devicePath.Substring(pidPos, 8) : string.Empty;
+            var deviceName = string.Empty;
+            var manufacturer = string.Empty;
+            var pnpDeviceId = string.Empty;
+            var deviceId = string.Empty;
+
+            foreach (var device in pnpEntity)
+            {
+                deviceId = device.GetPropertyValue("DeviceID") is null ? string.Empty : device.GetPropertyValue("DeviceID").ToString();
+                if (deviceId is not null && deviceId.ToUpper() == devicePath)
+                {
+                    // VID/PIDが一致したdeviceの情報からイベント引数にセットする情報を抽出
+                    deviceName = device.GetPropertyValue("Name") is null ? string.Empty : device.GetPropertyValue("Name").ToString();
+                    manufacturer = device.GetPropertyValue("Manufacturer") is null ? string.Empty : device.GetPropertyValue("Manufacturer").ToString();
+                    pnpDeviceId = device.GetPropertyValue("PNPDeviceID") is null ? string.Empty : device.GetPropertyValue("PNPDeviceID").ToString();
+                    this.logger?.Debug($"Device name:{(deviceName)} Manufacturer:{manufacturer} ID:{(deviceId)}");
+                    break;
+                }
+            }
+            result["deviceName"] = deviceName is null ? string.Empty : deviceName;
+            result["manufacturer"] = manufacturer is null ? string.Empty : manufacturer;
+            result["pnpDeviceId"] = pnpDeviceId is null ? string.Empty : pnpDeviceId;
+            result["vid"] = vid is null ? string.Empty : vid;
+            result["pid"] = pid is null ? string.Empty : pid;
+
+            return result;
+        }
+
+        /// <summary>
+        /// 指定したデバイスインスタンスを起点に、子デバイスを取得する。
+        /// </summary>
+        /// <param name="rootDevInst">検索の起点となるデバイスインスタンスを指定する。</param>
+        /// <param name="pnpEntity">ManagementClassインスタンスを指定する。</param>
+        /// <returns>子デバイスのリストを返す。</returns>
+        private List<DeviceNotifyInfomation> GetChildren(int rootDevInst, ManagementObjectCollection pnpEntity)
+        {
+            var result = new List<DeviceNotifyInfomation>();
+            var next = 0;
+
+            if (CM_Get_Child(ref next, rootDevInst) == CR_SUCCESS)
+            {
+                var nextId = GetDeviceId(next);
+                result.Add(new DeviceNotifyInfomation(this.IsAdded, nextId, pnpEntity, this.logger));
+            }
+            while (CM_Get_Sibling(ref next, rootDevInst) == CR_SUCCESS)
+            {
+                var nextId = GetDeviceId(next);
+                result.Add(new DeviceNotifyInfomation(this.IsAdded, nextId, pnpEntity, this.logger));
+                rootDevInst = next;
+            }
+
+            return result;
+        }
+
+        /// <summary>
+        /// デバイスインスタンスからデバイスIDを取得する。
+        /// </summary>
+        /// <param name="devInst">デバイスインスタンスを指定する。</param>
+        /// <returns>デバイスIDを返す。</returns>
+        private static string GetDeviceId(int devInst)
+        {
+            uint idSize = 0;
+            var result = string.Empty;
+
+            CM_Get_Device_ID_Size(out idSize, devInst);
+            idSize++;               // Fix: 文字化けしたから入れた(結果的に直ったように見える)けど、本当にこれでいいのかは未確認
+            var idBuff = new StringBuilder((int)idSize);
+            if (idBuff is not null)
+            {
+                CM_Get_Device_ID(devInst, idBuff, idSize);
+                result = idBuff.ToString();
+            }
+
+            return result is null ? string.Empty : result;
+        }
+
+        private NLog.Logger? logger;
     }
 }

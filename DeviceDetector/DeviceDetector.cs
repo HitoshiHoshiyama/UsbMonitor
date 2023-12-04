@@ -315,12 +315,13 @@ namespace DeviceDetector
             {
                 var nextId = GetDeviceId(next);
                 result.Add(new DeviceNotifyInfomation(this.IsAdded, nextId, pnpEntity, this.logger));
-            }
-            while (CM_Get_Sibling(ref next, rootDevInst) == CR_SUCCESS)
-            {
-                var nextId = GetDeviceId(next);
-                result.Add(new DeviceNotifyInfomation(this.IsAdded, nextId, pnpEntity, this.logger));
                 rootDevInst = next;
+                while (CM_Get_Sibling(ref next, rootDevInst) == CR_SUCCESS)
+                {
+                    nextId = GetDeviceId(next);
+                    result.Add(new DeviceNotifyInfomation(this.IsAdded, nextId, pnpEntity, this.logger));
+                    rootDevInst = next;
+                }
             }
 
             return result;

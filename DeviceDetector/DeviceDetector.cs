@@ -245,10 +245,14 @@ namespace DeviceDetector
             var properties = this.GetPropertySet(devicePath, pnpEntity);
             this.DeviceName = properties["deviceName"];
             this.Manufacturer = properties["manufacturer"];
-            this.InstancePath = properties["pnpDeviceId"];
+            this.PnPDeviceId = properties["pnpDeviceId"];
+            this.ClassGuid = properties.TryGetValue("classGuid", out string? value) && value != string.Empty ? new Guid(value) : Guid.Empty;
 
-            var pdnDevInst = 0;
-            if (CM_Locate_DevNode(ref pdnDevInst, this.InstancePath, CM_LOCATE_DEVNODE_PHANTOM) == CR_SUCCESS) this.Childs = GetChildren(pdnDevInst, pnpEntity);
+            if (DeviceName != string.Empty)
+            {
+                var pdnDevInst = 0;
+                if (CM_Locate_DevNode(ref pdnDevInst, this.PnPDeviceId, CM_LOCATE_DEVNODE_PHANTOM) == CR_SUCCESS) this.Childs = GetChildren(pdnDevInst, pnpEntity);
+            }
             this.logger?.Debug($"Child node:{this.Childs.Count}");
         }
         /// <summary>日時を取得する。</summary>
@@ -260,10 +264,17 @@ namespace DeviceDetector
         /// <summary>製造者名を取得する。</summary>
         public string Manufacturer { get; private set; } = string.Empty;
         /// <summary>インスタンスパスを取得する。</summary>
-        public string InstancePath { get; private set; } = string.Empty;
+        public string PnPDeviceId { get; private set; } = string.Empty;
+        public Guid ClassGuid { get; private set; } = Guid.Empty;
         /// <summary>子デバイスを取得する。</summary>
         public List<DeviceNotifyInfomation> Childs { get; private set; } = new List<DeviceNotifyInfomation>();
 
+        /// <summary>
+        /// ManagementClassインスタンスからデバイスパスと一致するデバイス情報を取得する。
+        /// </summary>
+        /// <param name="devicePath">検索対象のデバイスパスを指定する。</param>
+        /// <param name="pnpEntity">Win32_PnPEntityクラスのManagementBaseObjectインスタンスを指定する。</param>
+        /// <returns>取得したデバイス情報の連想配列を返す。</returns>
         private Dictionary<string, string> GetPropertySet(string devicePath, ManagementObjectCollection? pnpEntity)
         {
             if (pnpEntity is null) return new Dictionary<string, string>();
@@ -277,6 +288,7 @@ namespace DeviceDetector
             var manufacturer = string.Empty;
             var pnpDeviceId = string.Empty;
             var deviceId = string.Empty;
+            var classGuid = string.Empty;
 
             foreach (var device in pnpEntity)
             {
@@ -287,13 +299,17 @@ namespace DeviceDetector
                     deviceName = device.GetPropertyValue("Name") is null ? string.Empty : device.GetPropertyValue("Name").ToString();
                     manufacturer = device.GetPropertyValue("Manufacturer") is null ? string.Empty : device.GetPropertyValue("Manufacturer").ToString();
                     pnpDeviceId = device.GetPropertyValue("PNPDeviceID") is null ? string.Empty : device.GetPropertyValue("PNPDeviceID").ToString();
+                    classGuid = device.GetPropertyValue("ClassGuid") is null ? string.Empty : device.GetPropertyValue("ClassGuid").ToString();
                     this.logger?.Debug($"Device name:{(deviceName)} Manufacturer:{manufacturer} ID:{(deviceId)}");
                     break;
                 }
+                deviceId = string.Empty;
             }
             result["deviceName"] = deviceName is null ? string.Empty : deviceName;
             result["manufacturer"] = manufacturer is null ? string.Empty : manufacturer;
             result["pnpDeviceId"] = pnpDeviceId is null ? string.Empty : pnpDeviceId;
+            result["classGuid"] = classGuid is null ? string.Empty : classGuid;
+            result["deviceId"] = deviceId is null ? string.Empty : deviceId;
             result["vid"] = vid is null ? string.Empty : vid;
             result["pid"] = pid is null ? string.Empty : pid;
 

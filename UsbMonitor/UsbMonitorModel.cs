@@ -32,7 +32,7 @@ namespace UsbMonitor
                     if(item is not null)
                     {
                         var line = $"{(item.DateTime.ToString("yyyy/MM/dd HH:mm:ss"))}\t{(item.IsAdded ? "add" : "remove")}\t";
-                        line += $"{item.DeviceName}\t{item.Manufacturer}\t{item.InstancePath}{Environment.NewLine}";
+                        line += $"{item.DeviceName}\t{item.Manufacturer}\t{item.PnPDeviceId}{Environment.NewLine}";
                         outFile.Write(line);
                     }
                 }

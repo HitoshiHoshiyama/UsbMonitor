@@ -2,6 +2,7 @@
 using System.Runtime.InteropServices;
 using System.Management;
 using System.Text;
+using System.Text.Json;
 
 namespace DeviceDetector
 {
@@ -144,7 +145,7 @@ namespace DeviceDetector
                     // デバイスパスからVID/PIDを抽出
                     var dbcc_name = request.Item2.dbcc_name is null ? string.Empty : new string(request.Item2.dbcc_name);
                     dbcc_name = TrimDevicePath(dbcc_name.Remove(dbcc_name.IndexOf('\0')));
-                    var arg = new DeviceNotifyInfomation(request.Item1, dbcc_name, pnpEntity, instance.LoggerInstance);
+                    var arg = new DeviceNotifyInfomation(request.Item1, dbcc_name, pnpEntity, instance.TaskCancel, instance.LoggerInstance);
 
                     if (arg.DeviceName != string.Empty)
                     {
@@ -233,12 +234,13 @@ namespace DeviceDetector
         #endregion
 
         /// <summary>
-        /// コンストラクタ。
+        /// デバイスパスから情報を検索して DeviceNotifyInfomation クラスを初期化する。
         /// </summary>
         /// <param name="isAdded">追加/削除の区分を指定する。trueが追加を意味する。</param>
         /// <param name="devicePath">デバイスパスを指定する。</param>
         /// <param name="pnpEntity">Win32_PnPEntityクラスのManagementBaseObjectインスタンスを指定する。</param>
-        public DeviceNotifyInfomation(bool isAdded, string devicePath, ManagementObjectCollection pnpEntity, NLog.Logger? logger = null)
+        /// <param name="cancel">デバイス検索を強制終了させる CancellationTokenSource を指定する。</param>
+        public DeviceNotifyInfomation(bool isAdded, string devicePath, ManagementObjectCollection pnpEntity, CancellationTokenSource cancel, NLog.Logger? logger = null)
         {
             this.logger = logger;
             this.IsAdded = isAdded;
@@ -247,11 +249,13 @@ namespace DeviceDetector
             this.Manufacturer = properties["manufacturer"];
             this.PnPDeviceId = properties["pnpDeviceId"];
             this.ClassGuid = properties.TryGetValue("classGuid", out string? value) && value != string.Empty ? new Guid(value) : Guid.Empty;
+            this.Vid = properties["vid"];
+            this.Pid = properties["pid"];
 
             if (DeviceName != string.Empty)
             {
                 var pdnDevInst = 0;
-                if (CM_Locate_DevNode(ref pdnDevInst, this.PnPDeviceId, CM_LOCATE_DEVNODE_PHANTOM) == CR_SUCCESS) this.Childs = GetChildren(pdnDevInst, pnpEntity);
+                if (CM_Locate_DevNode(ref pdnDevInst, this.PnPDeviceId, CM_LOCATE_DEVNODE_PHANTOM) == CR_SUCCESS) this.Childs = GetChildren(pdnDevInst, pnpEntity, cancel);
             }
             this.logger?.Debug($"Child node:{this.Childs.Count}");
         }
@@ -265,7 +269,12 @@ namespace DeviceDetector
         public string Manufacturer { get; private set; } = string.Empty;
         /// <summary>インスタンスパスを取得する。</summary>
         public string PnPDeviceId { get; private set; } = string.Empty;
+        /// <summary>Class GUIDを取得する。</summary>
         public Guid ClassGuid { get; private set; } = Guid.Empty;
+        /// <summary>VenderIDを取得する。</summary>
+        public string Vid { get; private set; } = string.Empty;
+        /// <summary>ProductIDを取得する。</summary>
+        public string Pid { get; private set; } = string.Empty;
         /// <summary>子デバイスを取得する。</summary>
         public List<DeviceNotifyInfomation> Childs { get; private set; } = new List<DeviceNotifyInfomation>();
 
@@ -321,21 +330,23 @@ namespace DeviceDetector
         /// </summary>
         /// <param name="rootDevInst">検索の起点となるデバイスインスタンスを指定する。</param>
         /// <param name="pnpEntity">ManagementClassインスタンスを指定する。</param>
+        /// <param name="cancel">デバイス検索を強制終了させる CancellationTokenSource を指定する。</param>
         /// <returns>子デバイスのリストを返す。</returns>
-        private List<DeviceNotifyInfomation> GetChildren(int rootDevInst, ManagementObjectCollection pnpEntity)
+        private List<DeviceNotifyInfomation> GetChildren(int rootDevInst, ManagementObjectCollection pnpEntity, CancellationTokenSource cancel)
         {
             var result = new List<DeviceNotifyInfomation>();
             var next = 0;
+            if (cancel.IsCancellationRequested) return result;
 
             if (CM_Get_Child(ref next, rootDevInst) == CR_SUCCESS)
             {
                 var nextId = GetDeviceId(next);
-                result.Add(new DeviceNotifyInfomation(this.IsAdded, nextId, pnpEntity, this.logger));
+                result.Add(new DeviceNotifyInfomation(this.IsAdded, nextId, pnpEntity, cancel , this.logger));
                 rootDevInst = next;
-                while (CM_Get_Sibling(ref next, rootDevInst) == CR_SUCCESS)
+                while (!cancel.IsCancellationRequested && CM_Get_Sibling(ref next, rootDevInst) == CR_SUCCESS)
                 {
                     nextId = GetDeviceId(next);
-                    result.Add(new DeviceNotifyInfomation(this.IsAdded, nextId, pnpEntity, this.logger));
+                    result.Add(new DeviceNotifyInfomation(this.IsAdded, nextId, pnpEntity, cancel, this.logger));
                     rootDevInst = next;
                 }
             }

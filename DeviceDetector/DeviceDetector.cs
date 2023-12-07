@@ -3,6 +3,8 @@ using System.Runtime.InteropServices;
 using System.Management;
 using System.Text;
 using System.Text.Json;
+using System.Text.Json.Serialization;
+using System.Security.Cryptography;
 
 namespace DeviceDetector
 {
@@ -47,6 +49,8 @@ namespace DeviceDetector
         private static extern bool UnregisterDeviceNotification(IntPtr handle);
         #endregion
 
+        private const string MapFileName = @".\AliasMap.json";
+
         /// <summary>
         /// コンストラクタ。
         /// </summary>
@@ -54,6 +58,21 @@ namespace DeviceDetector
         public DeviceDetector(NLog.Logger? logger = null)
         {
             if (logger is not null) this.LoggerInstance = logger;
+            if (System.IO.File.Exists(MapFileName))
+            {
+                using(var reader = new StreamReader(MapFileName))
+                {
+                    if (reader is not null)
+                    {
+                        var element = JsonSerializer.Deserialize<Dictionary<string, Dictionary<string, string>>>(reader.ReadToEnd());
+                        if (element is not null)
+                        {
+                            this.AliasMap = element;
+                            this.LoggerInstance?.Info("Loading alias map is succeeded.");
+                        }
+                    }
+                }
+            }
             // Task起動準備
             this.TaskQueue = new BlockingCollection<Tuple<bool, DEV_BROADCAST_DEVICEINTERFACE>>();
             this.MsgTask = new Task(() => this.MsgTaskProc(this));
@@ -89,6 +108,29 @@ namespace DeviceDetector
         }
 
         /// <summary>
+        /// <br>デバイスの別名を登録する。</br>
+        /// <br>登録された内容はJSONに保存され、次回以降の検出時に使用される。</br>
+        /// </summary>
+        /// <param name="deviceNameAlias">デバイス名の別名を指定する。</param>
+        /// <param name="manufacturerAlias">製造者名の別名を指定する。</param>
+        /// <param name="deviceInfo">名前を置き換えるデバイスの、デバイス追加/削除イベント引数を指定する。</param>
+        public void RegistDeviceAlias(string deviceNameAlias, string manufacturerAlias, DeviceNotifyEventArg deviceInfo)
+        {
+            var properties = new Dictionary<string, string>()
+            {
+                {"deviceName", deviceInfo.DeviceName},
+                {"manufacturer", deviceInfo.Manufacturer},
+                {"pnpDeviceId", deviceInfo.PnPDeviceId},
+                {"classGuid", deviceInfo.ClassGuid.ToString()},
+                {"vid", deviceInfo.Vid},
+                {"pid", deviceInfo.Pid},
+                {"deviceNameAlias", deviceNameAlias},
+                {"manufacturerAlias", manufacturerAlias},
+            };
+            this.AliasMap[deviceInfo.PnPDeviceId] = properties;
+        }
+
+        /// <summary>
         /// ウィンドウプロシージャ。WM_DEVICECHANGEのみ処理する。
         /// </summary>
         /// <param name="hwnd">ウィンドウハンドルが設定される。</param>
@@ -114,6 +156,36 @@ namespace DeviceDetector
             return IntPtr.Zero;
         }
 
+        /// <summary>リソース破棄処理。</summary>
+        public void Dispose()
+        {
+            // Task終了->終了待ち
+            this.TaskCancel.Cancel();
+            this.LoggerInstance?.Debug("MessageTask canceled.");
+            this.MsgTask.Wait();
+            this.LoggerInstance?.Debug("MessageTask terminated.");
+
+            this.TaskQueue.Dispose();
+            this.TaskCancel.Dispose();
+
+            using (var writer = new StreamWriter(MapFileName, false, Encoding.UTF8))
+            {
+                if (writer is not null)
+                {
+                    var options = new JsonSerializerOptions { WriteIndented = true };
+                    var element = JsonSerializer.Serialize<Dictionary<string, Dictionary<string, string>>>(this.AliasMap, options);
+                    if (element is not null)
+                    {
+                        writer.Write(element);
+                        this.LoggerInstance?.Info("Saving alias map is succeeded.");
+                    }
+                }
+            }
+
+            if (this.HdevNotify != IntPtr.Zero) { UnregisterDeviceNotification(this.HdevNotify); }
+            this.LoggerInstance?.Info($"{this.GetType().Name} all resource disposed.");
+        }
+
         /// <summary>デバイスの追加/削除時に発生するイベント。</summary>
         public event DeviceChanded? DeviceChanged;
 
@@ -122,7 +194,7 @@ namespace DeviceDetector
         /// </summary>
         /// <param name="sender">イベント発生元のインスタンスを指定する。</param>
         /// <param name="eventArg">イベント情報を設定したイベント引数を指定する。</param>
-        public delegate void DeviceChanded(object sender, DeviceNotifyInfomation eventArg);
+        public delegate void DeviceChanded(object sender, DeviceNotifyEventArg eventArg);
 
         /// <summary>デバイス追加/削除時の処理を行うTask。</summary>
         private Action<DeviceDetector> MsgTaskProc = ((DeviceDetector instance) =>
@@ -145,7 +217,7 @@ namespace DeviceDetector
                     // デバイスパスからVID/PIDを抽出
                     var dbcc_name = request.Item2.dbcc_name is null ? string.Empty : new string(request.Item2.dbcc_name);
                     dbcc_name = TrimDevicePath(dbcc_name.Remove(dbcc_name.IndexOf('\0')));
-                    var arg = new DeviceNotifyInfomation(request.Item1, dbcc_name, pnpEntity, instance.TaskCancel, instance.LoggerInstance);
+                    var arg = new DeviceNotifyEventArg(request.Item1, dbcc_name, pnpEntity, instance.TaskCancel, instance.LoggerInstance);
 
                     if (arg.DeviceName != string.Empty)
                     {
@@ -195,25 +267,11 @@ namespace DeviceDetector
         private NLog.Logger? LoggerInstance;
         private IntPtr HdevNotify = IntPtr.Zero;
 
-        /// <summary>リソース破棄処理。</summary>
-        public void Dispose()
-        {
-            // Task終了->終了待ち
-            this.TaskCancel.Cancel();
-            this.LoggerInstance?.Debug("MessageTask canceled.");
-            this.MsgTask.Wait();
-            this.LoggerInstance?.Debug("MessageTask terminated.");
-
-            this.TaskQueue.Dispose();
-            this.TaskCancel.Dispose();
-
-            if (this.HdevNotify != IntPtr.Zero) { UnregisterDeviceNotification(this.HdevNotify); }
-            this.LoggerInstance?.Info($"{this.GetType().Name} all resource disposed.");
-        }
+        private Dictionary<string, Dictionary<string, string>> AliasMap = new Dictionary<string, Dictionary<string, string>>();
     }
 
     /// <summary>デバイス追加/削除イベントのイベント引数クラス。</summary>
-    public class DeviceNotifyInfomation : EventArgs
+    public class DeviceNotifyEventArg : EventArgs
     {
         #region native
         [DllImport("setupapi.dll", SetLastError = true, CharSet = CharSet.Auto)]
@@ -234,13 +292,54 @@ namespace DeviceDetector
         #endregion
 
         /// <summary>
-        /// デバイスパスから情報を検索して DeviceNotifyInfomation クラスを初期化する。
+        /// コピーコンストラクタ。
+        /// </summary>
+        /// <param name="eventArg">コピー元オブジェクトを指定する。</param>
+        public DeviceNotifyEventArg(DeviceNotifyEventArg eventArg)
+        {
+            this.IsAdded = eventArg.IsAdded;
+            this.DateTime = eventArg.DateTime;
+            this.DeviceName = eventArg.DeviceName;
+            this.Manufacturer = eventArg.Manufacturer;
+            this.PnPDeviceId = eventArg.PnPDeviceId;
+            this.ClassGuid = eventArg.ClassGuid;
+            this.ClassName = eventArg.ClassName;
+            this.Vid = eventArg.Vid;
+            this.Pid = eventArg.Pid;
+            this.DeviceNameAlias = eventArg.DeviceNameAlias;
+            this.ManufacturerAlias = eventArg.ManufacturerAlias;
+            this.Childs = eventArg.Childs;
+        }
+
+        /// <summary>
+        /// <br>プロパティリストから情報を設定して DeviceNotifyEventArg クラスを初期化する。</br>
+        /// <br>この方法の場合、Childプロパティは空のリストを返す。</br>
+        /// </summary>
+        /// <param name="isAdded">追加/削除の区分を指定する。trueが追加を意味する。</param>
+        /// <param name="properties">プロパティリストを指定する。</param>
+        public DeviceNotifyEventArg(bool isAdded, Dictionary<string, string> properties)
+        {
+            this.IsAdded = isAdded;
+
+            this.DeviceName = properties["deviceName"];
+            this.Manufacturer = properties["manufacturer"];
+            this.PnPDeviceId = properties["pnpDeviceId"];
+            this.ClassGuid = properties.TryGetValue("classGuid", out string? value) && value != string.Empty ? new Guid(value) : Guid.Empty;
+            this.ClassName = properties["className"];
+            this.Vid = properties["vid"];
+            this.Pid = properties["pid"];
+            this.DeviceNameAlias = properties["deviceNameAlias"];
+            this.ManufacturerAlias = properties["manufacturerAlias"];
+        }
+
+        /// <summary>
+        /// デバイスパスから情報を検索して DeviceNotifyEventArg クラスを初期化する。
         /// </summary>
         /// <param name="isAdded">追加/削除の区分を指定する。trueが追加を意味する。</param>
         /// <param name="devicePath">デバイスパスを指定する。</param>
         /// <param name="pnpEntity">Win32_PnPEntityクラスのManagementBaseObjectインスタンスを指定する。</param>
         /// <param name="cancel">デバイス検索を強制終了させる CancellationTokenSource を指定する。</param>
-        public DeviceNotifyInfomation(bool isAdded, string devicePath, ManagementObjectCollection pnpEntity, CancellationTokenSource cancel, NLog.Logger? logger = null)
+        public DeviceNotifyEventArg(bool isAdded, string devicePath, ManagementObjectCollection pnpEntity, CancellationTokenSource cancel, NLog.Logger? logger = null)
         {
             this.logger = logger;
             this.IsAdded = isAdded;
@@ -249,6 +348,7 @@ namespace DeviceDetector
             this.Manufacturer = properties["manufacturer"];
             this.PnPDeviceId = properties["pnpDeviceId"];
             this.ClassGuid = properties.TryGetValue("classGuid", out string? value) && value != string.Empty ? new Guid(value) : Guid.Empty;
+            this.ClassName = properties["className"];
             this.Vid = properties["vid"];
             this.Pid = properties["pid"];
 
@@ -271,12 +371,18 @@ namespace DeviceDetector
         public string PnPDeviceId { get; private set; } = string.Empty;
         /// <summary>Class GUIDを取得する。</summary>
         public Guid ClassGuid { get; private set; } = Guid.Empty;
+        /// <summary>デバイスクラス名を取得する。</summary>
+        public string ClassName { get; private set; } = string.Empty;
         /// <summary>VenderIDを取得する。</summary>
         public string Vid { get; private set; } = string.Empty;
         /// <summary>ProductIDを取得する。</summary>
         public string Pid { get; private set; } = string.Empty;
+        /// <summary>デバイス名のエイリアスを取得する。</summary>
+        public string DeviceNameAlias { get; private set; } = string.Empty;
+        /// <summary>製造者名のエイリアスを取得する。</summary>
+        public string ManufacturerAlias { get; private set; } = string.Empty;
         /// <summary>子デバイスを取得する。</summary>
-        public List<DeviceNotifyInfomation> Childs { get; private set; } = new List<DeviceNotifyInfomation>();
+        public List<DeviceNotifyEventArg> Childs { get; private set; } = new List<DeviceNotifyEventArg>();
 
         /// <summary>
         /// ManagementClassインスタンスからデバイスパスと一致するデバイス情報を取得する。
@@ -298,6 +404,7 @@ namespace DeviceDetector
             var pnpDeviceId = string.Empty;
             var deviceId = string.Empty;
             var classGuid = string.Empty;
+            var className = string.Empty;
 
             foreach (var device in pnpEntity)
             {
@@ -309,6 +416,7 @@ namespace DeviceDetector
                     manufacturer = device.GetPropertyValue("Manufacturer") is null ? string.Empty : device.GetPropertyValue("Manufacturer").ToString();
                     pnpDeviceId = device.GetPropertyValue("PNPDeviceID") is null ? string.Empty : device.GetPropertyValue("PNPDeviceID").ToString();
                     classGuid = device.GetPropertyValue("ClassGuid") is null ? string.Empty : device.GetPropertyValue("ClassGuid").ToString();
+                    className = device.GetPropertyValue("PNPClass") is null ? string.Empty : device.GetPropertyValue("PNPClass").ToString();
                     this.logger?.Debug($"Device name:{(deviceName)} Manufacturer:{manufacturer} ID:{(deviceId)}");
                     break;
                 }
@@ -318,6 +426,7 @@ namespace DeviceDetector
             result["manufacturer"] = manufacturer is null ? string.Empty : manufacturer;
             result["pnpDeviceId"] = pnpDeviceId is null ? string.Empty : pnpDeviceId;
             result["classGuid"] = classGuid is null ? string.Empty : classGuid;
+            result["className"] = className is null ? string.Empty : className;
             result["deviceId"] = deviceId is null ? string.Empty : deviceId;
             result["vid"] = vid is null ? string.Empty : vid;
             result["pid"] = pid is null ? string.Empty : pid;
@@ -332,21 +441,21 @@ namespace DeviceDetector
         /// <param name="pnpEntity">ManagementClassインスタンスを指定する。</param>
         /// <param name="cancel">デバイス検索を強制終了させる CancellationTokenSource を指定する。</param>
         /// <returns>子デバイスのリストを返す。</returns>
-        private List<DeviceNotifyInfomation> GetChildren(int rootDevInst, ManagementObjectCollection pnpEntity, CancellationTokenSource cancel)
+        private List<DeviceNotifyEventArg> GetChildren(int rootDevInst, ManagementObjectCollection pnpEntity, CancellationTokenSource cancel)
         {
-            var result = new List<DeviceNotifyInfomation>();
+            var result = new List<DeviceNotifyEventArg>();
             var next = 0;
             if (cancel.IsCancellationRequested) return result;
 
             if (CM_Get_Child(ref next, rootDevInst) == CR_SUCCESS)
             {
                 var nextId = GetDeviceId(next);
-                result.Add(new DeviceNotifyInfomation(this.IsAdded, nextId, pnpEntity, cancel , this.logger));
+                result.Add(new DeviceNotifyEventArg(this.IsAdded, nextId, pnpEntity, cancel , this.logger));
                 rootDevInst = next;
                 while (!cancel.IsCancellationRequested && CM_Get_Sibling(ref next, rootDevInst) == CR_SUCCESS)
                 {
                     nextId = GetDeviceId(next);
-                    result.Add(new DeviceNotifyInfomation(this.IsAdded, nextId, pnpEntity, cancel, this.logger));
+                    result.Add(new DeviceNotifyEventArg(this.IsAdded, nextId, pnpEntity, cancel, this.logger));
                     rootDevInst = next;
                 }
             }

@@ -32,9 +32,9 @@ namespace UsbMonitor
         /// </summary>
         /// <param name="sender">イベント発生元オブジェクトが設定される。</param>
         /// <param name="notify">デバイス変更通知情報が設定される。</param>
-        private void OnDeviceChanged(object? sender, DeviceDetector.DeviceNotifyInfomation notify)
+        private void OnDeviceChanged(object? sender, DeviceDetector.DeviceNotifyEventArg notify)
         {
-            this.notifyList.Add(notify);
+            this.notifyList.Add(new DeviceNotifyInfomation(notify));
             this.NotifyList = this.notifyList;
             this.ToastNotified?.Invoke(notify);
         }
@@ -45,7 +45,7 @@ namespace UsbMonitor
         /// <param name="fileName">ファイル名を指定する。</param>
         public void ExportNotify(string fileName)
         {
-            this.UsbMonitorModel.Export(this.notifyList.ToList(), fileName);
+            this.UsbMonitorModel.Export(this.notifyList.ToList<DeviceNotifyEventArg>(), fileName);
         }
 
         /// <summary>リソースを開放する。</summary>
@@ -60,7 +60,7 @@ namespace UsbMonitor
         /// トースト通知イベント用デリゲート。
         /// </summary>
         /// <param name="notify">通知内容が設定される。</param>
-        public delegate void ToastNotifyEventHandler(DeviceDetector.DeviceNotifyInfomation notify);
+        public delegate void ToastNotifyEventHandler(DeviceDetector.DeviceNotifyEventArg notify);
 
         /// <summary>デバイス変更通知リストを取得・設定する。</summary>
         public ObservableCollection<DeviceNotifyInfomation> NotifyList
@@ -114,5 +114,13 @@ namespace UsbMonitor
         {
             return value != null ? value.Equals(TrueStr) : false;
         }
+    }
+
+    internal class DeviceNotifyInfomation : DeviceDetector.DeviceNotifyEventArg
+    {
+        public DeviceNotifyInfomation(DeviceDetector.DeviceNotifyEventArg arg)
+            : base(arg) { }
+
+        public bool IsSelected { get; set; } = false;
     }
 }

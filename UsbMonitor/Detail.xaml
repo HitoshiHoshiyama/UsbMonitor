@@ -5,8 +5,17 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:UsbMonitor"
         mc:Ignorable="d"
-        Title="Detail" Height="306" Width="318">
+        Title="Detail" Height="306" Width="279">
     <Grid>
-
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition/>
+            <ColumnDefinition/>
+        </Grid.ColumnDefinitions>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="11*"/>
+            <RowDefinition Height="18*"/>
+        </Grid.RowDefinitions>
+        <Label Content="DeviceName" HorizontalAlignment="Left" Margin="10,14,0,0" VerticalAlignment="Top" Width="259" Grid.ColumnSpan="2"/>
+        <TreeView HorizontalAlignment="Left" Margin="10,45,0,118" Width="259" Grid.RowSpan="2" Grid.ColumnSpan="2"/>
     </Grid>
 </Window>

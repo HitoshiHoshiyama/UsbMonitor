@@ -1,4 +1,5 @@
 ﻿using Microsoft.Toolkit.Uwp.Notifications;
+using System.IO;
 using System.Windows;
 using System.Windows.Interop;
 
@@ -48,13 +49,22 @@ namespace UsbMonitor
             }
         }
 
-        private void OnToastNotified(DeviceDetector.DeviceNotifyInfomation notifyInfo)
+        private void OnToastNotified(DeviceDetector.DeviceNotifyEventArg notifyInfo)
         {
-            new ToastContentBuilder().AddArgument("action", "viewConversation")
-                .AddArgument("conversationId", 9813)
-                .AddText($"{notifyInfo.DeviceName} が{(notifyInfo.IsAdded ? "接続され" : "抜かれ")}ました。")
-                .AddText($"製造者：{notifyInfo.Manufacturer}")
-                .Show();
+            if (notifyInfo != null)
+            {
+                new ToastContentBuilder().AddText($"{notifyInfo.DeviceName} が{(notifyInfo.IsAdded ? "接続され" : "抜かれ")}ました。")
+                    .AddText($"製造者：{notifyInfo.Manufacturer}")
+                    .AddAppLogoOverride(new Uri(Path.GetFullPath("UsbMonitor48.png"), UriKind.Relative))
+                    .Show();
+            }
+        }
+
+        private void contextMenu_Opened(object sender, RoutedEventArgs e)
+        {
+            if (contextMenu.IsOpen && this.notifyList.SelectedIndex >= 0)
+            {
+            }
         }
     }
 }

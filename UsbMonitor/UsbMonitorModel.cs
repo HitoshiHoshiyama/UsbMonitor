@@ -20,7 +20,7 @@ namespace UsbMonitor
         /// </summary>
         /// <param name="notifyList">デバイス変更通知リストを指定する。</param>
         /// <param name="fileName">ファイル名をフルパスで指定する。</param>
-        public void Export(List<DeviceNotifyInfomation> notifyList, string fileName)
+        public void Export(List<DeviceNotifyEventArg> notifyList, string fileName)
         {
             // 出力するものが無い時はファイルを作成しない
             if (notifyList is null || notifyList.Count == 0) return;
@@ -51,14 +51,14 @@ namespace UsbMonitor
             hwndSrc.AddHook(new HwndSourceHook(this.Detector.WndProc));
         }
 
-        public event EventHandler<DeviceNotifyInfomation>? DeviceChanged;
+        public event EventHandler<DeviceNotifyEventArg>? DeviceChanged;
 
         /// <summary>
         /// デバイス変更検知イベントハンドラ。
         /// </summary>
         /// <param name="sender">イベント発生元オブジェクトが設定される。</param>
         /// <param name="e">イベント引数が設定される。</param>
-        private void OnDetect(object sender, DeviceDetector.DeviceNotifyInfomation e)
+        private void OnDetect(object sender, DeviceDetector.DeviceNotifyEventArg e)
         {
             this.Logger.Debug($"{e.DeviceName} is {(e.IsAdded ? "added" : "removed")}.");
             this.DeviceChanged?.Invoke( this, e );

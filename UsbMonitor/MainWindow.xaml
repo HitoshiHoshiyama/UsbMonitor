@@ -29,9 +29,9 @@
                   Grid.RowSpan="2" AutoGenerateColumns="False" IsReadOnly="True" Grid.ColumnSpan="3" Height="211" VerticalAlignment="Top"
                   SelectionUnit="FullRow" SelectionMode="Single" MouseDoubleClick="OnNotifyListMouseDoubleClick">
             <DataGrid.ContextMenu>
-                <ContextMenu Name="contextMenu" Opened="contextMenu_Opened" StaysOpen="True">
-                    <MenuItem Header="Detail"></MenuItem>
-                    <MenuItem Header="Alias"></MenuItem>
+                <ContextMenu Name="contextMenu" StaysOpen="True">
+                    <MenuItem Header="Detail" Name="Detail"  Click="OnMenuClicked"></MenuItem>
+                    <MenuItem Header="Alias" Name="Alias"  Click="OnMenuClicked"></MenuItem>
                 </ContextMenu>
             </DataGrid.ContextMenu>
             <DataGrid.Resources>

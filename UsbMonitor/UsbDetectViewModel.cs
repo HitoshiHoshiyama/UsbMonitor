@@ -116,11 +116,21 @@ namespace UsbMonitor
         }
     }
 
-    internal class DeviceNotifyInfomation : DeviceDetector.DeviceNotifyEventArg
+    public class DeviceNotifyInfomation : DeviceDetector.DeviceNotifyEventArg
     {
         public DeviceNotifyInfomation(DeviceDetector.DeviceNotifyEventArg arg)
             : base(arg) { }
 
         public bool IsSelected { get; set; } = false;
+
+        public new List<DeviceNotifyInfomation> Childs
+        {
+            get { return base.Childs.Select((val) => new DeviceNotifyInfomation(val)).ToList(); }
+            set
+            {
+                base.Childs = value.Select((val) => (DeviceNotifyEventArg)val).ToList();
+                this.IsSelected = false;
+            }
+        }
     }
 }

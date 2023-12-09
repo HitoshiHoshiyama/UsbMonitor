@@ -382,7 +382,7 @@ namespace DeviceDetector
         /// <summary>製造者名のエイリアスを取得する。</summary>
         public string ManufacturerAlias { get; private set; } = string.Empty;
         /// <summary>子デバイスを取得する。</summary>
-        public List<DeviceNotifyEventArg> Childs { get; private set; } = new List<DeviceNotifyEventArg>();
+        public List<DeviceNotifyEventArg> Childs { get; protected set; } = new List<DeviceNotifyEventArg>();
 
         /// <summary>
         /// ManagementClassインスタンスからデバイスパスと一致するデバイス情報を取得する。

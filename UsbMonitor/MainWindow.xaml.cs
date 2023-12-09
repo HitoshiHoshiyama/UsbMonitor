@@ -66,5 +66,22 @@ namespace UsbMonitor
             {
             }
         }
+
+        private void OnNotifyListMouseDoubleClick(object sender, System.Windows.Input.MouseButtonEventArgs e)
+        {
+            foreach (var notify in ((UsbDetectViewModel)this.DataContext).NotifyList)
+            {
+                if (notify != null && notify.IsSelected) 
+                {
+                    var detail = new Detail(notify);
+                    detail.ShowDialog();
+                }
+            }
+        }
+
+        private void OnKeyUp(object sender, System.Windows.Input.KeyEventArgs e)
+        {
+            if (e.Key == System.Windows.Input.Key.Escape) this.Hide();
+        }
     }
 }

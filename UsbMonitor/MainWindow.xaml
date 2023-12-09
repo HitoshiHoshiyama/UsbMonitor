@@ -9,7 +9,8 @@
         ResizeMode="NoResize"
         Icon="UsbMonitor48.ico"
         Closing="OnClosing"
-        Closed="OnClosed">
+        Closed="OnClosed"
+        KeyUp="OnKeyUp">
     <Window.DataContext>
         <local:UsbDetectViewModel />
     </Window.DataContext>
@@ -26,7 +27,7 @@
         <DataGrid Name="notifyList" Margin="10,10,10,0"
                   ItemsSource="{Binding NotifyList, Mode=OneWay, UpdateSourceTrigger=PropertyChanged}"
                   Grid.RowSpan="2" AutoGenerateColumns="False" IsReadOnly="True" Grid.ColumnSpan="3" Height="211" VerticalAlignment="Top"
-                  SelectionUnit="FullRow" SelectionMode="Single">
+                  SelectionUnit="FullRow" SelectionMode="Single" MouseDoubleClick="OnNotifyListMouseDoubleClick">
             <DataGrid.ContextMenu>
                 <ContextMenu Name="contextMenu" Opened="contextMenu_Opened" StaysOpen="True">
                     <MenuItem Header="Detail"></MenuItem>

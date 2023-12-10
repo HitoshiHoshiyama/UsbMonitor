@@ -32,8 +32,8 @@
                 <TextBox Text="{Binding DeviceNameAlias, Mode=TwoWay, UpdateSourceTrigger=LostFocus}" Name="DeviceNameAliasTextBox" Margin="88,103,58,0" VerticalAlignment="Top" Height="16" BorderThickness="0" IsReadOnly="True"/>
                 <TextBox Text="製造者別名" HorizontalAlignment="Left" Margin="10,134,0,0" VerticalAlignment="Top" BorderThickness="0"/>
                 <TextBox Text="{Binding ManufacturerAlias, Mode=TwoWay, UpdateSourceTrigger=LostFocus}" Name="ManufacturerAliasTextBox" Margin="88,134,58,0" VerticalAlignment="Top" Height="16" BorderThickness="0" IsReadOnly="True"/>
-                <Button Name="BtnDeviceNameEdit" Content="編集" Margin="317,131,10,26" Click="OnEditClick"/>
-                <Button Name="BtnManufucturerEdit" Content="編集" Margin="317,100,10,56" Click="OnEditClick"/>
+                <Button Name="BtnDeviceNameEdit" Content="編集" Margin="317,100,10,56" Click="OnEditClick"/>
+                <Button Name="BtnManufucturerEdit" Content="編集" Margin="317,131,10,26" Click="OnEditClick"/>
             </Grid>
         </GroupBox>
         <Label Content="デバイスツリー" Margin="10,37,100,0" VerticalAlignment="Top" Grid.Row="1"/>

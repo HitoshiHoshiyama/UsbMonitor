@@ -50,7 +50,7 @@ namespace DeviceDetector
         #endregion
 
         private const string MapFileName = @".\AliasMap.json";
-        private const int LOAD_WAIT_TIME = 500;
+        private const int LOAD_WAIT_TIME = 800;
 
         /// <summary>
         /// コンストラクタ。

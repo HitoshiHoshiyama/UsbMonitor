@@ -60,28 +60,6 @@ namespace UsbMonitor
             }
         }
 
-        private void OnMenuClicked(object sender, RoutedEventArgs e)
-        {
-            if (this.notifyList.SelectedIndex >= 0 && sender.GetType() == typeof(System.Windows.Controls.MenuItem))
-            {
-                foreach (var notify in ((UsbDetectViewModel)this.DataContext).NotifyList)
-                {
-                    if (notify != null && notify.IsSelected)
-                    {
-                        if (((System.Windows.Controls.MenuItem)sender).Name == "Detail")
-                        {
-                            // TODO: not implement
-                        }
-                        if (((System.Windows.Controls.MenuItem)sender).Name == "Alias")
-                        {
-                            // TODO: not implement
-                        }
-                        break;
-                    }
-                }
-            }
-        }
-
         private void OnNotifyListMouseDoubleClick(object sender, System.Windows.Input.MouseButtonEventArgs e)
         {
             foreach (var notify in ((UsbDetectViewModel)this.DataContext).NotifyList)

@@ -57,5 +57,22 @@ namespace UsbMonitor
             this.BtnOk.IsEnabled = true;
             ((System.Windows.Controls.Button)sender).IsEnabled = false;
         }
+
+        private void OnMenuClicked(object sender, RoutedEventArgs e)
+        {
+            if (this.DeviceTree.SelectedItem is not null)
+            {
+                string copyString;
+                if (((System.Windows.Controls.MenuItem)sender).Name == "CopyDevice")
+                {
+                    copyString = ((DeviceNotifyInfomation)this.DeviceTree.SelectedItem).DeviceName;
+                }
+                else
+                {
+                    copyString = ((DeviceNotifyInfomation)this.DeviceTree.SelectedItem).Manufacturer;
+                }
+                System.Windows.Clipboard.SetText(copyString);
+            }
+        }
     }
 }

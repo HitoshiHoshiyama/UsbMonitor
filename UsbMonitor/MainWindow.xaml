@@ -28,12 +28,6 @@
                   ItemsSource="{Binding NotifyList, Mode=OneWay, UpdateSourceTrigger=PropertyChanged}"
                   Grid.RowSpan="2" AutoGenerateColumns="False" IsReadOnly="True" Grid.ColumnSpan="3" Height="211" VerticalAlignment="Top"
                   SelectionUnit="FullRow" SelectionMode="Single" MouseDoubleClick="OnNotifyListMouseDoubleClick">
-            <DataGrid.ContextMenu>
-                <ContextMenu Name="contextMenu" StaysOpen="True">
-                    <MenuItem Header="Detail" Name="Detail"  Click="OnMenuClicked"></MenuItem>
-                    <MenuItem Header="Alias" Name="Alias"  Click="OnMenuClicked"></MenuItem>
-                </ContextMenu>
-            </DataGrid.ContextMenu>
             <DataGrid.Resources>
                 <local:BoolToStringConverter x:Key="AddOrRemove" FalseStr="削除" TrueStr="追加" />
             </DataGrid.Resources>

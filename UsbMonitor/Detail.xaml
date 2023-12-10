@@ -37,7 +37,7 @@
             </Grid>
         </GroupBox>
         <Label Content="デバイスツリー" Margin="10,37,100,0" VerticalAlignment="Top" Grid.Row="1"/>
-        <TreeView ItemsSource="{Binding Root}" Margin="10,68,10,61" Grid.ColumnSpan="2" Grid.Row="1">
+        <TreeView Name="DeviceTree" ItemsSource="{Binding Root}" Margin="10,68,10,61" Grid.ColumnSpan="2" Grid.Row="1">
             <TreeView.ItemTemplate>
                 <HierarchicalDataTemplate DataType="local:DeviceNotifyInfomation" ItemsSource="{Binding Childs}">
                     <TextBlock>
@@ -45,6 +45,12 @@
                     </TextBlock>
                 </HierarchicalDataTemplate>
             </TreeView.ItemTemplate>
+            <TreeView.ContextMenu>
+                <ContextMenu Name="contextMenu" StaysOpen="True">
+                    <MenuItem Header="Copy(Device Name)" Name="CopyDevice" Click="OnMenuClicked"></MenuItem>
+                    <MenuItem Header="Copy(Manufacturer)" Name="CopyManufacturer" Click="OnMenuClicked"></MenuItem>
+                </ContextMenu>
+            </TreeView.ContextMenu>
         </TreeView>
         <Button Name="BtnOk" Grid.Column="1" Content="OK" HorizontalAlignment="Left" Margin="0,0,0,22" Grid.Row="1" Width="85" Click="OnOkClicked" IsEnabled="False" Height="26" VerticalAlignment="Bottom"/>
         <Button Name="BtnCancel" Grid.Column="1" Content="Cancel" Margin="0,0,10,22" Grid.Row="1" Click="OnCancelClicked" Height="26" VerticalAlignment="Bottom" HorizontalAlignment="Right" Width="85"/>

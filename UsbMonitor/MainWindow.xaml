@@ -9,7 +9,8 @@
         ResizeMode="NoResize"
         Icon="UsbMonitor48.ico"
         Closing="OnClosing"
-        Closed="OnClosed">
+        Closed="OnClosed"
+        KeyUp="OnKeyUp">
     <Window.DataContext>
         <local:UsbDetectViewModel />
     </Window.DataContext>
@@ -25,13 +26,14 @@
         </Grid.RowDefinitions>
         <DataGrid Name="notifyList" Margin="10,10,10,0"
                   ItemsSource="{Binding NotifyList, Mode=OneWay, UpdateSourceTrigger=PropertyChanged}"
-                  Grid.RowSpan="2" AutoGenerateColumns="False" IsReadOnly="True" Grid.ColumnSpan="3" Height="211" VerticalAlignment="Top">
+                  Grid.RowSpan="2" AutoGenerateColumns="False" IsReadOnly="True" Grid.ColumnSpan="3" Height="211" VerticalAlignment="Top"
+                  SelectionUnit="FullRow" SelectionMode="Single" MouseDoubleClick="OnNotifyListMouseDoubleClick">
             <DataGrid.Resources>
                 <local:BoolToStringConverter x:Key="AddOrRemove" FalseStr="削除" TrueStr="追加" />
             </DataGrid.Resources>
             <DataGrid.RowStyle>
                 <Style TargetType="DataGridRow">
-                    <Setter Property="IsHitTestVisible" Value="False"></Setter>
+                    <Setter Property="IsSelected" Value="{Binding IsSelected}"></Setter>
                     <Style.Triggers>
                         <DataTrigger Binding="{Binding IsAdded}" Value="False">
                             <Setter Property="Background" Value="Red"></Setter>
@@ -41,14 +43,15 @@
                             <Setter Property="Background" Value="White"></Setter>
                             <Setter Property="TextElement.Foreground" Value="Black"></Setter>
                         </DataTrigger>
+                        <DataTrigger Binding="{Binding IsSelected}" Value="True" />
                     </Style.Triggers>
                 </Style>
             </DataGrid.RowStyle>
             <DataGrid.Columns>
                 <DataGridTextColumn Header="日時" Binding="{Binding DateTime, StringFormat=yyyy/MM/dd HH:mm:ss}" MinWidth="120"></DataGridTextColumn>
                 <DataGridTextColumn Header="追加/削除" Binding="{Binding IsAdded, Converter={StaticResource AddOrRemove}}" MinWidth="70"></DataGridTextColumn>
-                <DataGridTextColumn Header="デバイス名" Binding="{Binding DeviceName}" MinWidth="150"></DataGridTextColumn>
-                <DataGridTextColumn Header="製造者" Binding="{Binding Manufacturer}" MinWidth="200"></DataGridTextColumn>
+                <DataGridTextColumn Header="デバイス名" Binding="{Binding DeviceDisplayName, UpdateSourceTrigger=PropertyChanged}" MinWidth="150"></DataGridTextColumn>
+                <DataGridTextColumn Header="製造者" Binding="{Binding ManufacturerDisplayName, UpdateSourceTrigger=PropertyChanged}" MinWidth="200"></DataGridTextColumn>
             </DataGrid.Columns>
         </DataGrid>
         <Button Name="dirSelectBtn" Content="出力先ディレクトリ" HorizontalAlignment="Left" Margin="10,140,0,0" Grid.Row="1" Width="117" Click="OnDirSelectBtnClick" Height="24" VerticalAlignment="Top"/>

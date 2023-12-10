@@ -1,4 +1,5 @@
-﻿using System.Windows;
+﻿using Microsoft.Toolkit.Uwp.Notifications;
+using System.Windows;
 
 namespace UsbMonitor
 {
@@ -26,8 +27,22 @@ namespace UsbMonitor
                 Text = $"{this.GetType().Namespace}",
                 ContextMenuStrip = menu
             };
+            // Listen to notification activation
+            ToastNotificationManagerCompat.OnActivated += toastArgs =>
+            {
+                // https://learn.microsoft.com/ja-jp/windows/apps/design/shell/tiles-and-notifications/send-local-toast?tabs=desktop-msix
+                ToastArguments args = ToastArguments.Parse(toastArgs.Argument);
+                System.Windows.Application.Current.Dispatcher.Invoke(delegate
+                {
+                    // TODO: Show the corresponding content
+                });
+            };
             // マウスイベントハンドラを設定
             this.NotifyIcon.MouseDoubleClick += new MouseEventHandler(OnDoubleClick);
+
+            // MainWindow生成のみ(XAMLのStartupUriは削除)
+            this.mainWindow = new MainWindow();
+            this.mainWindow.Visibility = Visibility.Visible;
         }
 
         /// <summary>
@@ -37,10 +52,8 @@ namespace UsbMonitor
         /// <param name="e">イベント引数が設定される。</param>
         private void OnDoubleClick(object? sender, System.Windows.Forms.MouseEventArgs e)
         {
-            // 初回はMainWindow未生成(XAMLのStartupUriは削除)
-            if (this.mainWindow is null) this.mainWindow = new MainWindow();
             // MainWindowの表示(×ボタンではHideするだけ)
-            this.mainWindow.Show();
+            this.mainWindow?.Show();
         }
 
         /// <summary>
@@ -51,6 +64,7 @@ namespace UsbMonitor
         private void ExitMenuClick(object? sender, EventArgs e)
         {
             this.NotifyIcon?.Dispose();
+            ToastNotificationManagerCompat.History.Clear();
             Shutdown();
         }
 

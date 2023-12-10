@@ -3,7 +3,6 @@ using System.ComponentModel;
 using System.Windows.Data;
 using System.Configuration;
 using DeviceDetector;
-using static System.Windows.Forms.VisualStyles.VisualStyleElement.Window;
 
 namespace UsbMonitor
 {
@@ -16,6 +15,16 @@ namespace UsbMonitor
             this.UsbMonitorModel = new UsbMonitorModel();
             // ObservableCollectionをUIスレッド以外(Callbackスレッド)から操作するため
             BindingOperations.EnableCollectionSynchronization(this.notifyList, new object());
+        }
+
+        public void UpdateNotify(DeviceNotifyInfomation notify)
+        {
+            var notifyIdx = this.NotifyList.IndexOf(notify);
+            if (notifyIdx < 0) return;
+
+            this.notifyList[notifyIdx] = notify;
+            this.NotifyList = this.notifyList;
+            this.UsbMonitorModel.RegistDeviceAlias(notify.DeviceNameAlias, notify.ManufacturerAlias, notify);
         }
 
         /// <summary>
@@ -33,15 +42,20 @@ namespace UsbMonitor
         /// </summary>
         /// <param name="sender">イベント発生元オブジェクトが設定される。</param>
         /// <param name="notify">デバイス変更通知情報が設定される。</param>
-        private void OnDeviceChanged(object? sender, DeviceDetector.DeviceNotifyInfomation notify)
+        private void OnDeviceChanged(object? sender, DeviceDetector.DeviceNotifyEventArg notify)
         {
-            this.notifyList.Add(notify);
+            this.notifyList.Add(new DeviceNotifyInfomation(notify));
             this.NotifyList = this.notifyList;
+            this.ToastNotified?.Invoke(notify);
         }
 
+        /// <summary>
+        /// 通知情報をファイル出力する。
+        /// </summary>
+        /// <param name="fileName">ファイル名を指定する。</param>
         public void ExportNotify(string fileName)
         {
-            this.UsbMonitorModel.Export(this.notifyList.ToList(), fileName);
+            this.UsbMonitorModel.Export(this.notifyList.ToList<DeviceNotifyEventArg>(), fileName);
         }
 
         /// <summary>リソースを開放する。</summary>
@@ -49,6 +63,14 @@ namespace UsbMonitor
 
         /// <summary>プロパティ変更時に発生するイベント。</summary>
         public event PropertyChangedEventHandler? PropertyChanged;
+        /// <summary>トースト通知発生時のイベント。</summary>
+        public event ToastNotifyEventHandler? ToastNotified;
+
+        /// <summary>
+        /// トースト通知イベント用デリゲート。
+        /// </summary>
+        /// <param name="notify">通知内容が設定される。</param>
+        public delegate void ToastNotifyEventHandler(DeviceDetector.DeviceNotifyEventArg notify);
 
         /// <summary>デバイス変更通知リストを取得・設定する。</summary>
         public ObservableCollection<DeviceNotifyInfomation> NotifyList
@@ -56,6 +78,8 @@ namespace UsbMonitor
             get { return this.notifyList; }
             set
             {
+                this.notifyList = new ObservableCollection<DeviceNotifyInfomation>();
+                this.PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(this.NotifyList)));
                 this.notifyList = value;
                 this.PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(this.NotifyList)));
             }
@@ -101,6 +125,33 @@ namespace UsbMonitor
         public object ConvertBack(object value, Type targetType, object parameter, System.Globalization.CultureInfo culture)
         {
             return value != null ? value.Equals(TrueStr) : false;
+        }
+    }
+
+    public class DeviceNotifyInfomation : DeviceDetector.DeviceNotifyEventArg
+    {
+        public DeviceNotifyInfomation(DeviceDetector.DeviceNotifyEventArg arg)
+            : base(arg) { }
+
+        public void SetAlias(string deviceName, string manufacturer)
+        {
+            base.DeviceNameAlias = deviceName;
+            base.ManufacturerAlias = manufacturer;
+        }
+
+        public string DeviceDisplayName { get { return this.DeviceNameAlias == string.Empty ? base.DeviceName : this.DeviceNameAlias; } }
+        public string ManufacturerDisplayName { get { return this.ManufacturerAlias == string.Empty ? base.Manufacturer : this.ManufacturerAlias; } }
+
+        public bool IsSelected { get; set; } = false;
+
+        public new List<DeviceNotifyInfomation> Childs
+        {
+            get { return base.Childs.Select((val) => new DeviceNotifyInfomation(val)).ToList(); }
+            set
+            {
+                base.Childs = value.Select((val) => (DeviceNotifyEventArg)val).ToList();
+                this.IsSelected = false;
+            }
         }
     }
 }

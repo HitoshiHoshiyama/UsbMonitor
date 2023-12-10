@@ -17,6 +17,16 @@ namespace UsbMonitor
             BindingOperations.EnableCollectionSynchronization(this.notifyList, new object());
         }
 
+        public void UpdateNotify(DeviceNotifyInfomation notify)
+        {
+            var notifyIdx = this.NotifyList.IndexOf(notify);
+            if (notifyIdx < 0) return;
+
+            this.notifyList[notifyIdx] = notify;
+            this.NotifyList = this.notifyList;
+            this.UsbMonitorModel.RegistDeviceAlias(notify.DeviceNameAlias, notify.ManufacturerAlias, notify);
+        }
+
         /// <summary>
         /// ウィンドウハンドルをMoedl側に登録する。
         /// </summary>
@@ -68,6 +78,8 @@ namespace UsbMonitor
             get { return this.notifyList; }
             set
             {
+                this.notifyList = new ObservableCollection<DeviceNotifyInfomation>();
+                this.PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(this.NotifyList)));
                 this.notifyList = value;
                 this.PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(this.NotifyList)));
             }
@@ -120,6 +132,15 @@ namespace UsbMonitor
     {
         public DeviceNotifyInfomation(DeviceDetector.DeviceNotifyEventArg arg)
             : base(arg) { }
+
+        public void SetAlias(string deviceName, string manufacturer)
+        {
+            base.DeviceNameAlias = deviceName;
+            base.ManufacturerAlias = manufacturer;
+        }
+
+        public string DeviceDisplayName { get { return this.DeviceNameAlias == string.Empty ? base.DeviceName : this.DeviceNameAlias; } }
+        public string ManufacturerDisplayName { get { return this.ManufacturerAlias == string.Empty ? base.Manufacturer : this.ManufacturerAlias; } }
 
         public bool IsSelected { get; set; } = false;
 

@@ -50,6 +50,7 @@ namespace DeviceDetector
         #endregion
 
         private const string MapFileName = @".\AliasMap.json";
+        private const int LOAD_WAIT_TIME = 500;
 
         /// <summary>
         /// コンストラクタ。
@@ -122,12 +123,20 @@ namespace DeviceDetector
                 {"manufacturer", deviceInfo.Manufacturer},
                 {"pnpDeviceId", deviceInfo.PnPDeviceId},
                 {"classGuid", deviceInfo.ClassGuid.ToString()},
+                {"className", deviceInfo.ClassName },
                 {"vid", deviceInfo.Vid},
                 {"pid", deviceInfo.Pid},
                 {"deviceNameAlias", deviceNameAlias},
                 {"manufacturerAlias", manufacturerAlias},
             };
-            this.AliasMap[deviceInfo.PnPDeviceId] = properties;
+            if (this.AliasMap.ContainsKey(deviceInfo.PnPDeviceId))
+            {
+                this.AliasMap[deviceInfo.PnPDeviceId] = properties;
+            }
+            else
+            {
+                this.AliasMap.Add(deviceInfo.PnPDeviceId, properties);
+            }
         }
 
         /// <summary>
@@ -212,12 +221,21 @@ namespace DeviceDetector
                     {
                         // device追加時はManagementClass再生成
                         pnpEntity.Dispose();
+                        Thread.Sleep(LOAD_WAIT_TIME);
                         pnpEntity = new ManagementClass("Win32_PnPEntity").GetInstances();
                     }
                     // デバイスパスからVID/PIDを抽出
                     var dbcc_name = request.Item2.dbcc_name is null ? string.Empty : new string(request.Item2.dbcc_name);
                     dbcc_name = TrimDevicePath(dbcc_name.Remove(dbcc_name.IndexOf('\0')));
-                    var arg = new DeviceNotifyEventArg(request.Item1, dbcc_name, pnpEntity, instance.TaskCancel, instance.LoggerInstance);
+                    DeviceNotifyEventArg arg;
+                    if (instance.AliasMap.ContainsKey(dbcc_name))
+                    {
+                        arg = new DeviceNotifyEventArg(request.Item1, instance.AliasMap[dbcc_name]);
+                    }
+                    else
+                    {
+                        arg = new DeviceNotifyEventArg(request.Item1, dbcc_name, pnpEntity, instance.TaskCancel, instance.LoggerInstance);
+                    }
 
                     if (arg.DeviceName != string.Empty)
                     {
@@ -378,9 +396,9 @@ namespace DeviceDetector
         /// <summary>ProductIDを取得する。</summary>
         public string Pid { get; private set; } = string.Empty;
         /// <summary>デバイス名のエイリアスを取得する。</summary>
-        public string DeviceNameAlias { get; private set; } = string.Empty;
+        public string DeviceNameAlias { get; protected set; } = string.Empty;
         /// <summary>製造者名のエイリアスを取得する。</summary>
-        public string ManufacturerAlias { get; private set; } = string.Empty;
+        public string ManufacturerAlias { get; protected set; } = string.Empty;
         /// <summary>子デバイスを取得する。</summary>
         public List<DeviceNotifyEventArg> Childs { get; protected set; } = new List<DeviceNotifyEventArg>();
 

@@ -56,8 +56,8 @@
             <DataGrid.Columns>
                 <DataGridTextColumn Header="日時" Binding="{Binding DateTime, StringFormat=yyyy/MM/dd HH:mm:ss}" MinWidth="120"></DataGridTextColumn>
                 <DataGridTextColumn Header="追加/削除" Binding="{Binding IsAdded, Converter={StaticResource AddOrRemove}}" MinWidth="70"></DataGridTextColumn>
-                <DataGridTextColumn Header="デバイス名" Binding="{Binding DeviceName}" MinWidth="150"></DataGridTextColumn>
-                <DataGridTextColumn Header="製造者" Binding="{Binding Manufacturer}" MinWidth="200"></DataGridTextColumn>
+                <DataGridTextColumn Header="デバイス名" Binding="{Binding DeviceDisplayName, UpdateSourceTrigger=PropertyChanged}" MinWidth="150"></DataGridTextColumn>
+                <DataGridTextColumn Header="製造者" Binding="{Binding ManufacturerDisplayName, UpdateSourceTrigger=PropertyChanged}" MinWidth="200"></DataGridTextColumn>
             </DataGrid.Columns>
         </DataGrid>
         <Button Name="dirSelectBtn" Content="出力先ディレクトリ" HorizontalAlignment="Left" Margin="10,140,0,0" Grid.Row="1" Width="117" Click="OnDirSelectBtnClick" Height="24" VerticalAlignment="Top"/>

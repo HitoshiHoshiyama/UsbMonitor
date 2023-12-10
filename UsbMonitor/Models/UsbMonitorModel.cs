@@ -51,6 +51,18 @@ namespace UsbMonitor
             hwndSrc.AddHook(new HwndSourceHook(this.Detector.WndProc));
         }
 
+        /// <summary>
+        /// <br>デバイスの別名を登録する。</br>
+        /// <br>登録された内容はJSONに保存され、次回以降の検出時に使用される。</br>
+        /// </summary>
+        /// <param name="deviceNameAlias">デバイス名の別名を指定する。</param>
+        /// <param name="manufacturerAlias">製造者名の別名を指定する。</param>
+        /// <param name="notify">名前を置き換えるデバイスの、デバイス通知情報を指定する。</param>
+        public void RegistDeviceAlias(string deviceNameAlias, string manufacturerAlias, DeviceNotifyInfomation notify)
+        {
+            this.Detector.RegistDeviceAlias(deviceNameAlias, manufacturerAlias, notify);
+        }
+
         public event EventHandler<DeviceNotifyEventArg>? DeviceChanged;
 
         /// <summary>

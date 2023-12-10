@@ -53,8 +53,8 @@ namespace UsbMonitor
         {
             if (notifyInfo != null)
             {
-                new ToastContentBuilder().AddText($"{notifyInfo.DeviceName} が{(notifyInfo.IsAdded ? "接続され" : "抜かれ")}ました。")
-                    .AddText($"製造者：{notifyInfo.Manufacturer}")
+                new ToastContentBuilder().AddText($"{(notifyInfo.DeviceNameAlias == string.Empty ? notifyInfo.DeviceName : notifyInfo.DeviceNameAlias)} が{(notifyInfo.IsAdded ? "接続され" : "抜かれ")}ました。")
+                    .AddText($"製造者：{(notifyInfo.ManufacturerAlias == string.Empty ? notifyInfo.Manufacturer : notifyInfo.ManufacturerAlias)}")
                     .AddAppLogoOverride(new Uri(Path.GetFullPath("UsbMonitor48.png"), UriKind.Relative))
                     .Show();
             }
@@ -70,13 +70,13 @@ namespace UsbMonitor
                     {
                         if (((System.Windows.Controls.MenuItem)sender).Name == "Detail")
                         {
-                            var detail = new Detail(notify);
-                            detail.ShowDialog();
+                            // TODO: not implement
                         }
                         if (((System.Windows.Controls.MenuItem)sender).Name == "Alias")
                         {
                             // TODO: not implement
                         }
+                        break;
                     }
                 }
             }
@@ -89,7 +89,12 @@ namespace UsbMonitor
                 if (notify != null && notify.IsSelected) 
                 {
                     var detail = new Detail(notify);
-                    detail.ShowDialog();
+                    var result = detail.ShowDialog();
+                    if (result is not null && result is true)
+                    {
+                        ((UsbDetectViewModel)this.DataContext).UpdateNotify(notify);
+                        break;
+                    }
                 }
             }
         }

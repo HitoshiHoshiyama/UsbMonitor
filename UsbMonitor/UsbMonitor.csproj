@@ -19,6 +19,13 @@
 
   <ItemGroup>
     <None Remove="UsbMonitor48.ico" />
+    <None Remove="UsbMonitor48.png" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Content Include="UsbMonitor48.png">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
   </ItemGroup>
 
   <ItemGroup>
@@ -49,9 +56,6 @@
     <None Update="Properties\Settings.settings">
       <Generator>SettingsSingleFileGenerator</Generator>
       <LastGenOutput>Settings.Designer.cs</LastGenOutput>
-    </None>
-    <None Update="UsbMonitor48.png">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
   </ItemGroup>
 

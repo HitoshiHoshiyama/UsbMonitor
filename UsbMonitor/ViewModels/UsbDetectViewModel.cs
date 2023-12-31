@@ -128,22 +128,36 @@ namespace UsbMonitor
         }
     }
 
+    /// <summary>デバイス通知情報クラス</summary>
     public class DeviceNotifyInfomation : DeviceDetector.DeviceNotifyEventArg
     {
+        /// <summary>
+        /// コンストラクタ。
+        /// </summary>
+        /// <param name="arg">ベースクラスのインスタンスを指定する。</param>
         public DeviceNotifyInfomation(DeviceDetector.DeviceNotifyEventArg arg)
             : base(arg) { }
 
+        /// <summary>
+        /// デバイス名/製造者名の別名を設定する。
+        /// </summary>
+        /// <param name="deviceName">デバイス名の別名を指定する。</param>
+        /// <param name="manufacturer">製造者名の別名を指定する。</param>
         public void SetAlias(string deviceName, string manufacturer)
         {
             base.DeviceNameAlias = deviceName;
             base.ManufacturerAlias = manufacturer;
         }
 
+        /// <summary>デバイスの表示名を取得する。</summary>
         public string DeviceDisplayName { get { return this.DeviceNameAlias == string.Empty ? base.DeviceName : this.DeviceNameAlias; } }
+        /// <summary>製造者名の表示名を取得する。</summary>
         public string ManufacturerDisplayName { get { return this.ManufacturerAlias == string.Empty ? base.Manufacturer : this.ManufacturerAlias; } }
 
+        /// <summary>自分自身が配列の要素として選択されているかを取得・設定する。</summary>
         public bool IsSelected { get; set; } = false;
 
+        /// <summary>子デバイスを取得・設定する。</summary>
         public new List<DeviceNotifyInfomation> Childs
         {
             get { return base.Childs.Select((val) => new DeviceNotifyInfomation(val)).ToList(); }

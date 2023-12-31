@@ -2,6 +2,7 @@
 using System.IO;
 using System.Windows;
 using System.Windows.Interop;
+using NLog;
 
 namespace UsbMonitor
 {
@@ -18,27 +19,46 @@ namespace UsbMonitor
             {
                 ((UsbDetectViewModel)this.DataContext).RegistHwnd(new WindowInteropHelper(this).Handle);
                 ((UsbDetectViewModel)this.DataContext).ToastNotified += OnToastNotified;
+                // いったん表示しないとウィンドウメッセージを受け取れないため起動後即非表示
                 this.Visibility = Visibility.Hidden;
             };
         }
 
+        /// <summary>
+        /// Closedイベントハンドラ。
+        /// </summary>
+        /// <param name="sender">イベント発生元オブジェクトが設定される。</param>
+        /// <param name="e">イベント引数が設定される。</param>
         private void OnClosed(object sender, EventArgs e)
         {
+            // 通知ログを出力
             var fileName = DateTime.Now.ToString("yyyyMMdd_HHmmss");
             var dirName = ((UsbDetectViewModel)this.DataContext).LogDir;
             ((UsbDetectViewModel)this.DataContext).ExportNotify($"{dirName}{(System.IO.Path.DirectorySeparatorChar)}{fileName}.log");
 
             ((UsbDetectViewModel)this.DataContext).Dispose();
 
+            // トースト通知後始末
             ToastNotificationManagerCompat.Uninstall();
         }
 
+        /// <summary>
+        /// <br>Closingイベントハンドラ。</br>
+        /// <br>終了はトレイアイコンメニューから行うため、終了はキャンセルして画面非表示のみ。</br>
+        /// </summary>
+        /// <param name="sender">イベント発生元オブジェクトが設定される。</param>
+        /// <param name="e">イベント引数が設定される。</param>
         private void OnClosing(object sender, System.ComponentModel.CancelEventArgs e)
         {
             e.Cancel = true;
             this.Hide();
         }
 
+        /// <summary>
+        /// 出力ディレクトリ選択ボタンイベントハンドラ。
+        /// </summary>
+        /// <param name="sender">イベント発生元オブジェクトが設定される。</param>
+        /// <param name="e">イベント引数が設定される。</param>
         private void OnDirSelectBtnClick(object sender, RoutedEventArgs e)
         {
             var dialog = new System.Windows.Forms.FolderBrowserDialog();
@@ -49,6 +69,10 @@ namespace UsbMonitor
             }
         }
 
+        /// <summary>
+        /// トースト通知イベントハンドラ。
+        /// </summary>
+        /// <param name="notifyInfo"></param>
         private void OnToastNotified(DeviceDetector.DeviceNotifyEventArg notifyInfo)
         {
             if (notifyInfo != null)
@@ -60,26 +84,47 @@ namespace UsbMonitor
             }
         }
 
+        /// <summary>
+        /// 通知リストのダブルクリックイベントハンドラ。
+        /// </summary>
+        /// <param name="sender">イベント発生元オブジェクトが設定される。</param>
+        /// <param name="e">イベント引数が設定される。</param>
         private void OnNotifyListMouseDoubleClick(object sender, System.Windows.Input.MouseButtonEventArgs e)
         {
+            var IsSelectedFind = false;
             foreach (var notify in ((UsbDetectViewModel)this.DataContext).NotifyList)
             {
                 if (notify != null && notify.IsSelected) 
                 {
+                    // 選択アイテムのデバイス通知情報を検出したら詳細画面を表示
+                    IsSelectedFind = true;
                     var detail = new Detail(notify);
                     var result = detail.ShowDialog();
                     if (result is not null && result is true)
                     {
+                        // OKボタンで終了していたら情報を反映
                         ((UsbDetectViewModel)this.DataContext).UpdateNotify(notify);
                         break;
                     }
                 }
             }
+            if (!IsSelectedFind)
+            {
+                this.Logger.Debug($"Not found IsSelected row in NotifyList[{((UsbDetectViewModel)this.DataContext).NotifyList.Count} rows].");
+            }
         }
 
+        /// <summary>
+        /// <br>キー入力イベントハンドラ。</br>
+        /// <br>ESCキーで画面表示を消す。</br>
+        /// </summary>
+        /// <param name="sender">イベント発生元オブジェクトが設定される。</param>
+        /// <param name="e">イベント引数が設定される。</param>
         private void OnKeyUp(object sender, System.Windows.Input.KeyEventArgs e)
         {
             if (e.Key == System.Windows.Input.Key.Escape) this.Hide();
         }
+
+        private NLog.Logger Logger { get; } = NLog.LogManager.GetCurrentClassLogger();
     }
 }

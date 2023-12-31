@@ -3,8 +3,9 @@ using System.Runtime.InteropServices;
 using System.Management;
 using System.Text;
 using System.Text.Json;
-using System.Text.Json.Serialization;
-using System.Security.Cryptography;
+using System.IO;
+using System.IO.IsolatedStorage;
+using System.Net.Security;
 
 namespace DeviceDetector
 {
@@ -49,7 +50,7 @@ namespace DeviceDetector
         private static extern bool UnregisterDeviceNotification(IntPtr handle);
         #endregion
 
-        private const string MapFileName = @".\AliasMap.json";
+        private const string MapFileName = "AliasMap.json";
         private const int LOAD_WAIT_TIME = 800;
 
         /// <summary>
@@ -59,9 +60,14 @@ namespace DeviceDetector
         public DeviceDetector(NLog.Logger? logger = null)
         {
             if (logger is not null) this.LoggerInstance = logger;
-            if (System.IO.File.Exists(MapFileName))
+            this.isoStorage = IsolatedStorageFile.GetUserStoreForApplication();
+            var isoFileExist = isoStorage.FileExists(MapFileName);
+            if (isoFileExist || System.IO.File.Exists(MapFileName))
             {
-                using(var reader = new StreamReader(MapFileName))
+                IsolatedStorageFileStream? isoStream = null;
+                // 分離ストレージにファイルが存在する場合はそちら優先
+                if (isoFileExist) isoStream = new IsolatedStorageFileStream(MapFileName, FileMode.Open, FileAccess.Read, this.isoStorage);
+                using (var reader = isoStream is null ? new StreamReader(MapFileName) : new StreamReader(isoStream))
                 {
                     if (reader is not null)
                     {
@@ -177,7 +183,8 @@ namespace DeviceDetector
             this.TaskQueue.Dispose();
             this.TaskCancel.Dispose();
 
-            using (var writer = new StreamWriter(MapFileName, false, Encoding.UTF8))
+            var isoStream = new IsolatedStorageFileStream(MapFileName, FileMode.Create, FileAccess.Write, this.isoStorage);
+            using (var writer = new StreamWriter(isoStream, Encoding.UTF8))
             {
                 if (writer is not null)
                 {
@@ -190,6 +197,7 @@ namespace DeviceDetector
                     }
                 }
             }
+            this.isoStorage.Dispose();
 
             if (this.HdevNotify != IntPtr.Zero) { UnregisterDeviceNotification(this.HdevNotify); }
             this.LoggerInstance?.Info($"{this.GetType().Name} all resource disposed.");
@@ -284,6 +292,8 @@ namespace DeviceDetector
         private CancellationTokenSource TaskCancel = new CancellationTokenSource();
         private NLog.Logger? LoggerInstance;
         private IntPtr HdevNotify = IntPtr.Zero;
+
+        private IsolatedStorageFile isoStorage;
 
         private Dictionary<string, Dictionary<string, string>> AliasMap = new Dictionary<string, Dictionary<string, string>>();
     }

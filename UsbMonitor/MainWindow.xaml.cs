@@ -2,6 +2,7 @@
 using System.IO;
 using System.Windows;
 using System.Windows.Interop;
+using NLog;
 
 namespace UsbMonitor
 {
@@ -90,11 +91,13 @@ namespace UsbMonitor
         /// <param name="e">イベント引数が設定される。</param>
         private void OnNotifyListMouseDoubleClick(object sender, System.Windows.Input.MouseButtonEventArgs e)
         {
+            var IsSelectedFind = false;
             foreach (var notify in ((UsbDetectViewModel)this.DataContext).NotifyList)
             {
                 if (notify != null && notify.IsSelected) 
                 {
                     // 選択アイテムのデバイス通知情報を検出したら詳細画面を表示
+                    IsSelectedFind = true;
                     var detail = new Detail(notify);
                     var result = detail.ShowDialog();
                     if (result is not null && result is true)
@@ -104,6 +107,10 @@ namespace UsbMonitor
                         break;
                     }
                 }
+            }
+            if (!IsSelectedFind)
+            {
+                this.Logger.Debug($"Not found IsSelected row in NotifyList[{((UsbDetectViewModel)this.DataContext).NotifyList.Count} rows].");
             }
         }
 
@@ -117,5 +124,7 @@ namespace UsbMonitor
         {
             if (e.Key == System.Windows.Input.Key.Escape) this.Hide();
         }
+
+        private NLog.Logger Logger { get; } = NLog.LogManager.GetCurrentClassLogger();
     }
 }

@@ -27,12 +27,13 @@
         <DataGrid Name="notifyList" Margin="10,10,10,0"
                   ItemsSource="{Binding NotifyList, Mode=OneWay, UpdateSourceTrigger=PropertyChanged}"
                   Grid.RowSpan="2" AutoGenerateColumns="False" IsReadOnly="True" Grid.ColumnSpan="3" Height="211" VerticalAlignment="Top"
-                  SelectionUnit="FullRow" SelectionMode="Single" MouseDoubleClick="OnNotifyListMouseDoubleClick">
+                  SelectionUnit="FullRow" SelectionMode="Single">
             <DataGrid.Resources>
                 <local:BoolToStringConverter x:Key="AddOrRemove" FalseStr="削除" TrueStr="追加" />
             </DataGrid.Resources>
             <DataGrid.RowStyle>
                 <Style TargetType="DataGridRow">
+                    <EventSetter Event="MouseDoubleClick" Handler="OnNotifyListMouseDoubleClick" />
                     <Setter Property="IsSelected" Value="{Binding IsSelected}"></Setter>
                     <Style.Triggers>
                         <DataTrigger Binding="{Binding IsAdded}" Value="False">

@@ -91,26 +91,18 @@ namespace UsbMonitor
         /// <param name="e">イベント引数が設定される。</param>
         private void OnNotifyListMouseDoubleClick(object sender, System.Windows.Input.MouseButtonEventArgs e)
         {
-            var IsSelectedFind = false;
-            foreach (var notify in ((UsbDetectViewModel)this.DataContext).NotifyList)
+            if (e.Source.GetType() == typeof(System.Windows.Controls.DataGridRow) &&
+                ((System.Windows.Controls.DataGridRow)e.Source).Item is not null &&
+                ((System.Windows.Controls.DataGridRow)e.Source).Item.GetType() == typeof(DeviceNotifyInfomation))
             {
-                if (notify != null && notify.IsSelected) 
+                DeviceNotifyInfomation notify = (DeviceNotifyInfomation)((System.Windows.Controls.DataGridRow)e.Source).Item;
+                var detail = new Detail(notify);
+                var result = detail.ShowDialog();
+                if (result is not null && result is true)
                 {
-                    // 選択アイテムのデバイス通知情報を検出したら詳細画面を表示
-                    IsSelectedFind = true;
-                    var detail = new Detail(notify);
-                    var result = detail.ShowDialog();
-                    if (result is not null && result is true)
-                    {
-                        // OKボタンで終了していたら情報を反映
-                        ((UsbDetectViewModel)this.DataContext).UpdateNotify(notify);
-                        break;
-                    }
+                    // OKボタンで終了していたら情報を反映
+                    ((UsbDetectViewModel)this.DataContext).UpdateNotify(notify);
                 }
-            }
-            if (!IsSelectedFind)
-            {
-                this.Logger.Debug($"Not found IsSelected row in NotifyList[{((UsbDetectViewModel)this.DataContext).NotifyList.Count} rows].");
             }
         }
 
